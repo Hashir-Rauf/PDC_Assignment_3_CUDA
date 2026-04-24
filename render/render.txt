@@ -1,0 +1,202 @@
+Rendering to 1024x1024 image
+Loaded scene with 3 circles
+Loaded scene with 3 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.1426 ms
+Advance:  0.0008 ms
+Render:   0.2563 ms
+Total:    0.3997 ms
+File IO:  92.8932 ms
+
+Overall:  0.1383 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded scene with 10000 circles
+Loaded scene with 10000 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.1532 ms
+Advance:  0.0006 ms
+Render:   7.1024 ms
+Total:    7.2562 ms
+File IO:  95.4163 ms
+
+Overall:  2.0212 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded scene with 100000 circles
+Loaded scene with 100000 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.1552 ms
+Advance:  0.0007 ms
+Render:   167.7547 ms
+Total:    167.9106 ms
+File IO:  93.4724 ms
+
+Overall:  15.0877 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded scene with 1217 circles
+Loaded scene with 1217 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.1433 ms
+Advance:  0.0007 ms
+Render:   0.6103 ms
+Total:    0.7543 ms
+File IO:  100.7385 ms
+
+Overall:  0.1756 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded data for 100000 circles from snow.par
+Loaded scene with 100000 circles
+Loaded data for 100000 circles from snow.par
+Loaded scene with 100000 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.2585 ms
+Advance:  0.0015 ms
+Render:   27.1377 ms
+Total:    27.3977 ms
+File IO:  92.0002 ms
+
+Overall:  0.7288 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded scene with 10000 circles
+Loaded scene with 10000 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.2195 ms
+Advance:  0.0017 ms
+Render:   61.4153 ms
+Total:    61.6365 ms
+File IO:  91.5872 ms
+
+Overall:  29.9577 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded scene with 1000000 circles
+Loaded scene with 1000000 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.1916 ms
+Advance:  0.0007 ms
+Render:   291.8488 ms
+Total:    292.0411 ms
+File IO:  89.8905 ms
+
+Overall:  9.4935 sec (note units are seconds)
+Rendering to 1024x1024 image
+Loaded scene with 2000000 circles
+Loaded scene with 2000000 circles
+---------------------------------------------------------
+Initializing CUDA for CudaRenderer
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+
+Running benchmark, 1 frames, beginning at frame 0 ...
+Dumping frames to output_xxx.ppm
+Copying image data from device
+Wrote image file output_0000.ppm
+Copying image data from device
+***************** Correctness check passed **************************
+Clear:    0.1615 ms
+Advance:  0.0006 ms
+Render:   480.3530 ms
+Total:    480.5151 ms
+File IO:  90.6387 ms
+
+Overall:  0.9777 sec (note units are seconds)

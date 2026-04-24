@@ -27,6 +27,28 @@ static inline int nextPow2(int n) {
     return n;
 }
 
+// upsweep_kernel --
+// For each active index k, compute: result[k*two_dplus1 + two_dplus1-1] += result[k*two_dplus1 + two_d-1]
+__global__ void upsweep_kernel(int* result, int two_d, int two_dplus1, int num_active) {
+    int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if (k < num_active) {
+        int i = k * two_dplus1;
+        result[i + two_dplus1 - 1] += result[i + two_d - 1];
+    }
+}
+
+// downsweep_kernel --
+// For each active index k, swap and accumulate partial sums downward.
+__global__ void downsweep_kernel(int* result, int two_d, int two_dplus1, int num_active) {
+    int k = blockIdx.x * blockDim.x + threadIdx.x;
+    if (k < num_active) {
+        int i = k * two_dplus1;
+        int t = result[i + two_d - 1];
+        result[i + two_d - 1] = result[i + two_dplus1 - 1];
+        result[i + two_dplus1 - 1] += t;
+    }
+}
+
 // exclusive_scan --
 //
 // Implementation of an exclusive scan on global memory array `input`,
@@ -44,17 +66,31 @@ static inline int nextPow2(int n) {
 // places it in result
 void exclusive_scan(int* input, int N, int* result)
 {
+    int rounded_N = nextPow2(N);
 
-    // CS149 TODO:
-    //
-    // Implement your exclusive scan implementation here.  Keep in
-    // mind that although the arguments to this function are device
-    // allocated arrays, this is a function that is running in a thread
-    // on the CPU.  Your implementation will need to make multiple calls
-    // to CUDA kernel functions (that you must write) to implement the
-    // scan.
+    // Zero out any padding beyond N so garbage values don't corrupt the scan.
+    if (rounded_N > N)
+        cudaMemset(result + N, 0, (rounded_N - N) * sizeof(int));
 
+    // Upsweep phase: build partial-sum tree bottom-up.
+    // Each iteration halves the number of active threads.
+    for (int two_d = 1; two_d <= rounded_N / 2; two_d *= 2) {
+        int two_dplus1 = 2 * two_d;
+        int num_active = rounded_N / two_dplus1;
+        int blocks = (num_active + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+        upsweep_kernel<<<blocks, THREADS_PER_BLOCK>>>(result, two_d, two_dplus1, num_active);
+    }
 
+    // Set root to 0 to start the downsweep.
+    cudaMemset(result + rounded_N - 1, 0, sizeof(int));
+
+    // Downsweep phase: push sums back down to produce prefix sums.
+    for (int two_d = rounded_N / 2; two_d >= 1; two_d /= 2) {
+        int two_dplus1 = 2 * two_d;
+        int num_active = rounded_N / two_dplus1;
+        int blocks = (num_active + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+        downsweep_kernel<<<blocks, THREADS_PER_BLOCK>>>(result, two_d, two_dplus1, num_active);
+    }
 }
 
 
@@ -141,6 +177,22 @@ double cudaScanThrust(int* inarray, int* end, int* resultarray) {
 }
 
 
+// mark_flags_kernel --
+// flags[i] = 1 if input[i] == input[i+1], else 0.  Last element stays 0.
+__global__ void mark_flags_kernel(int* input, int* flags, int length) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < length - 1)
+        flags[i] = (input[i] == input[i + 1]) ? 1 : 0;
+}
+
+// scatter_kernel --
+// For every position where flags[i]==1, write index i to output[scan[i]].
+__global__ void scatter_kernel(int* flags, int* scan, int* output, int length) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < length - 1 && flags[i] == 1)
+        output[scan[i]] = i;
+}
+
 // find_repeats --
 //
 // Given an array of integers `device_input`, returns an array of all
@@ -148,20 +200,37 @@ double cudaScanThrust(int* inarray, int* end, int* resultarray) {
 //
 // Returns the total number of pairs found
 int find_repeats(int* device_input, int length, int* device_output) {
+    int rounded_length = nextPow2(length);
 
-    // CS149 TODO:
-    //
-    // Implement this function. You will probably want to
-    // make use of one or more calls to exclusive_scan(), as well as
-    // additional CUDA kernel launches.
-    //    
-    // Note: As in the scan code, the calling code ensures that
-    // allocated arrays are a power of 2 in size, so you can use your
-    // exclusive_scan function with them. However, your implementation
-    // must ensure that the results of find_repeats are correct given
-    // the actual array length.
+    // Allocate flags and scan arrays on device (power-of-2 sized for scan).
+    int* flags;
+    int* scan;
+    cudaMalloc(&flags, rounded_length * sizeof(int));
+    cudaMalloc(&scan,  rounded_length * sizeof(int));
 
-    return 0; 
+    // Zero everything so padding doesn't pollute the scan.
+    cudaMemset(flags, 0, rounded_length * sizeof(int));
+
+    // Step 1: mark positions where consecutive elements match.
+    int blocks = (length + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+    mark_flags_kernel<<<blocks, THREADS_PER_BLOCK>>>(device_input, flags, length);
+
+    // Step 2: exclusive scan on flags → each 1-flag learns its output index.
+    // exclusive_scan works in-place on `result`; copy flags into scan first.
+    cudaMemcpy(scan, flags, rounded_length * sizeof(int), cudaMemcpyDeviceToDevice);
+    exclusive_scan(flags, length, scan);
+
+    // Step 3: total count = scan[length-1] (flags[length-1] is always 0).
+    int count;
+    cudaMemcpy(&count, scan + (length - 1), sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Step 4: scatter original indices to their computed output positions.
+    scatter_kernel<<<blocks, THREADS_PER_BLOCK>>>(flags, scan, device_output, length);
+
+    cudaFree(flags);
+    cudaFree(scan);
+
+    return count;
 }
 
 

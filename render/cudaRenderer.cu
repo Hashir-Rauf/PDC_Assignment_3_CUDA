@@ -56,8 +56,17 @@ __constant__ float  cuConstColorRamp[COLOR_MAP_SIZE][3];
 #include "noiseCuda.cu_inl"
 #include "lookupColor.cu_inl"
 
+// Tile-based renderer configuration.
+// TILE_DIM x TILE_DIM pixels per tile; SCAN_BLOCK_DIM must equal TILE_DIM^2
+// and must be a power-of-2 <= 1024 (requirement of sharedMemExclusiveScan).
+#define TILE_DIM       16
+#define SCAN_BLOCK_DIM (TILE_DIM * TILE_DIM)  // 256
+typedef unsigned int uint;   
+#include "exclusiveScan.cu_inl"
+#include "circleBoxTest.cu_inl"
 
-// kernelClearImageSnowflake -- (CUDA device code)
+
+// kernelClearImageSnowflake (CUDA device code)
 //
 // Clear the image, setting the image to the white-gray gradation that
 // is used in the snowflake image
@@ -82,8 +91,7 @@ __global__ void kernelClearImageSnowflake() {
     *(float4*)(&cuConstRendererParams.imageData[offset]) = value;
 }
 
-// kernelClearImage --  (CUDA device code)
-//
+// kernelClearImage 
 // Clear the image, setting all pixels to the specified color rgba
 __global__ void kernelClearImage(float r, float g, float b, float a) {
 
@@ -233,7 +241,7 @@ __global__ void kernelAdvanceBouncingBalls() {
     }
 }
 
-// kernelAdvanceSnowflake -- (CUDA device code)
+// kernelAdvanceSnowflake  (CUDA device code)
 //
 // move the snowflake animation forward one time step.  Updates circle
 // positions and velocities.  Note how the position of the snowflake
@@ -312,11 +320,7 @@ __global__ void kernelAdvanceSnowflake() {
     *((float3*)velocityPtr) = velocity;
 }
 
-// shadePixel -- (CUDA device code)
-//
-// given a pixel and a circle, determines the contribution to the
-// pixel from the circle.  Update of the image is done in this
-// function.  Called by kernelRenderCircles()
+// shadePixel 
 __device__ __inline__ void
 shadePixel(int circleIndex, float2 pixelCenter, float3 p, float4* imagePtr) {
 
@@ -379,7 +383,7 @@ shadePixel(int circleIndex, float2 pixelCenter, float3 p, float4* imagePtr) {
     // END SHOULD-BE-ATOMIC REGION
 }
 
-// kernelRenderCircles -- (CUDA device code)
+// kernelRenderCircles  (CUDA device code)
 //
 // Each thread renders a circle.  Since there is no protection to
 // ensure order of update or mutual exclusion on the output image, the
@@ -424,6 +428,99 @@ __global__ void kernelRenderCircles() {
             shadePixel(index, pixelCenterNorm, p, imgPtr);
             imgPtr++;
         }
+    }
+}
+
+// kernelRenderTiles 
+//  One thread block per 16x16 pixel tile.
+//  Circles are processed in order 
+__global__ void kernelRenderTiles() {
+
+    int tileX = blockIdx.x;
+    int tileY = blockIdx.y;
+
+    // Linear thread index
+    int threadIndex = threadIdx.y * blockDim.x + threadIdx.x;
+
+    int pixelX = tileX * TILE_DIM + threadIdx.x;
+    int pixelY = tileY * TILE_DIM + threadIdx.y;
+
+    int imageWidth  = cuConstRendererParams.imageWidth;
+    int imageHeight = cuConstRendererParams.imageHeight;
+
+    bool validPixel = (pixelX < imageWidth && pixelY < imageHeight);
+
+    float invW = 1.f / imageWidth;
+    float invH = 1.f / imageHeight;
+
+    // Tile bounds in normalised [0,1] screen space.
+    // circleInBoxConservative expects boxT >= boxB.
+    float tileL = tileX * TILE_DIM * invW;
+    float tileR = (tileX * TILE_DIM + TILE_DIM) * invW;
+    float tileB = tileY * TILE_DIM * invH;
+    float tileT = (tileY * TILE_DIM + TILE_DIM) * invH;
+
+    float pixelCenterX = invW * (pixelX + 0.5f);
+    float pixelCenterY = invH * (pixelY + 0.5f);
+
+    float4* imgPtr = validPixel
+        ? (float4*)(&cuConstRendererParams.imageData[4 * (pixelY * imageWidth + pixelX)])
+        : nullptr;
+
+    // Shared memory for the in-block exclusive scan.
+    __shared__ uint prefixSumInput[SCAN_BLOCK_DIM];
+    __shared__ uint prefixSumOutput[SCAN_BLOCK_DIM];
+    __shared__ uint prefixSumScratch[2 * SCAN_BLOCK_DIM];
+
+    // Compacted list of circle indices that overlap this tile.
+    __shared__ int circleIdxBuf[SCAN_BLOCK_DIM];
+
+    int numCircles = cuConstRendererParams.numCircles;
+
+    // Process all circles in batches of SCAN_BLOCK_DIM, preserving order.
+    for (int batchStart = 0; batchStart < numCircles; batchStart += SCAN_BLOCK_DIM) {
+
+        int circleIdx = batchStart + threadIndex;
+
+        // Each thread tests whether its circle overlaps the tile.
+        uint inTile = 0;
+        if (circleIdx < numCircles) {
+            int ci3 = 3 * circleIdx;
+            float cx = cuConstRendererParams.position[ci3];
+            float cy = cuConstRendererParams.position[ci3 + 1];
+            float cr = cuConstRendererParams.radius[circleIdx];
+            inTile = circleInBoxConservative(cx, cy, cr, tileL, tileR, tileT, tileB) ? 1 : 0;
+        }
+
+        // Scan the overlap flags to compute compact output indices.
+        prefixSumInput[threadIndex] = inTile;
+        __syncthreads();
+
+        sharedMemExclusiveScan(threadIndex, prefixSumInput, prefixSumOutput,
+                               prefixSumScratch, SCAN_BLOCK_DIM);
+        __syncthreads();
+
+        // Scatter overlapping circles into the compacted shared buffer.
+        if (inTile) {
+            circleIdxBuf[prefixSumOutput[threadIndex]] = circleIdx;
+        }
+        __syncthreads();
+
+        // Total overlapping circles in this batch.
+        int numOverlap = prefixSumOutput[SCAN_BLOCK_DIM - 1]
+                       + prefixSumInput[SCAN_BLOCK_DIM - 1];
+
+        // Each pixel thread blends the compacted circles in index order.
+        if (validPixel) {
+            float2 pixelCenter = make_float2(pixelCenterX, pixelCenterY);
+            for (int i = 0; i < numOverlap; i++) {
+                int cIdx = circleIdxBuf[i];
+                float3 p = *(float3*)(&cuConstRendererParams.position[3 * cIdx]);
+                shadePixel(cIdx, pixelCenter, p, imgPtr);
+            }
+        }
+
+        __syncthreads();
     }
 }
 
@@ -577,7 +674,7 @@ CudaRenderer::setup() {
 
 }
 
-// allocOutputImage --
+// allocOutputImage 
 //
 // Allocate buffer the renderer will render into.  Check status of
 // image first to avoid memory leak.
@@ -589,7 +686,7 @@ CudaRenderer::allocOutputImage(int width, int height) {
     image = new Image(width, height);
 }
 
-// clearImage --
+// clearImage 
 //
 // Clear's the renderer's target image.  The state of the image after
 // the clear depends on the scene being rendered.
@@ -610,7 +707,7 @@ CudaRenderer::clearImage() {
     cudaDeviceSynchronize();
 }
 
-// advanceAnimation --
+// advanceAnimation 
 //
 // Advance the simulation one time step.  Updates all circle positions
 // and velocities
@@ -636,10 +733,13 @@ CudaRenderer::advanceAnimation() {
 void
 CudaRenderer::render() {
 
-    // 256 threads per block is a healthy number
-    dim3 blockDim(256, 1);
-    dim3 gridDim((numCircles + blockDim.x - 1) / blockDim.x);
+    // One 16x16 thread block per tile.
+    dim3 blockDim(TILE_DIM, TILE_DIM, 1);
+    dim3 gridDim(
+        (image->width  + TILE_DIM - 1) / TILE_DIM,
+        (image->height + TILE_DIM - 1) / TILE_DIM
+    );
 
-    kernelRenderCircles<<<gridDim, blockDim>>>();
+    kernelRenderTiles<<<gridDim, blockDim>>>();
     cudaDeviceSynchronize();
 }

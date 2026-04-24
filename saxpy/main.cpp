@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
-#include <string>
+#include <string.h>
 
 void saxpyCuda(int N, float alpha, float* x, float* y, float* result);
 void printCudaInfo();
@@ -22,21 +21,10 @@ int main(int argc, char** argv)
     int N = 100 * 1000 * 1000;
 
     // parse commandline options ////////////////////////////////////////////
-    int opt;
-    static struct option long_options[] = {
-        {"arraysize",  1, 0, 'n'},
-        {"help",       0, 0, '?'},
-        {0 ,0, 0, 0}
-    };
-
-    while ((opt = getopt_long(argc, argv, "?n:", long_options, NULL)) != EOF) {
-
-        switch (opt) {
-        case 'n':
-            N = atoi(optarg);
-            break;
-        case '?':
-        default:
+    for (int i = 1; i < argc; i++) {
+        if ((strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--arraysize") == 0) && i + 1 < argc) {
+            N = atoi(argv[++i]);
+        } else {
             usage(argv[0]);
             return 1;
         }

@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
 #include <string>
 #include <cstring>
 
@@ -85,32 +84,19 @@ int main(int argc, char** argv) {
     std::string input("random");
 
     // parse commandline options ////////////////////////////////////////////
-    int opt;
-    static struct option long_options[] = {
-        {"test",       1, 0, 'm'},
-        {"arraysize",  1, 0, 'n'},
-        {"input",      1, 0, 'i'},
-        {"help",       0, 0, '?'},
-        {"thrust",     0, 0, 't'},
-        {0 ,0, 0, 0}
-    };
-
-    while ((opt = getopt_long(argc, argv, "m:n:i:?t", long_options, NULL)) != EOF) {
-        switch (opt) {
-        case 'm':
-            test = optarg; 
-            break;
-        case 'n':
-            N = atoi(optarg);
-            break;
-        case 'i':
-            input = optarg;
-            break;
-        case 't':
+    for (int i = 1; i < argc; i++) {
+        if ((strcmp(argv[i], "-m") == 0 || strcmp(argv[i], "--test") == 0) && i + 1 < argc) {
+            test = argv[++i];
+        } else if ((strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--arraysize") == 0) && i + 1 < argc) {
+            N = atoi(argv[++i]);
+        } else if ((strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--input") == 0) && i + 1 < argc) {
+            input = argv[++i];
+        } else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--thrust") == 0) {
             useThrust = true;
-            break;
-        case '?':
-        default:
+        } else if (strcmp(argv[i], "-?") == 0 || strcmp(argv[i], "--help") == 0) {
+            usage(argv[0]);
+            return 0;
+        } else {
             usage(argv[0]);
             return 1;
         }

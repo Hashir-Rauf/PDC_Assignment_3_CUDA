@@ -1,0 +1,40 @@
+---------------------------------------------------------
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+Array size: 1000000
+Student GPU time: 0.741 ms
+Scan outputs are correct!
+---------------------------------------------------------
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+Array size: 10000000
+Student GPU time: 7.800 ms
+Scan outputs are correct!
+---------------------------------------------------------
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+Array size: 1000000
+Student GPU time: 1.391 ms
+Find_repeats outputs are correct!
+---------------------------------------------------------
+Found 1 CUDA devices
+Device 0: NVIDIA GeForce GTX 1070
+   SMs:        15
+   Global mem: 8192 MB
+   CUDA Cap:   6.1
+---------------------------------------------------------
+Array size: 10000000
+Student GPU time: 15.035 ms
+Find_repeats outputs are correct!
